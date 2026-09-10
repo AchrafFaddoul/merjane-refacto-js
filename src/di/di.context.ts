@@ -6,6 +6,10 @@ import {NotificationService} from '@/services/impl/notification.service.js';
 import {type Database} from '@/db/type.js';
 import {ProductService} from '@/services/impl/product.service.js';
 import {OrderService} from '@/services/impl/order.service.js';
+import {type OrderRepository} from '@/services/order-repository.port.js';
+import {type ProductRepository} from '@/services/product-repository.port.js';
+import {DrizzleOrderRepository} from '@/repositories/drizzle-order.repository.js';
+import {DrizzleProductRepository} from '@/repositories/drizzle-product.repository.js';
 
 declare module '@fastify/awilix' {
 
@@ -15,6 +19,8 @@ declare module '@fastify/awilix' {
 		ns: INotificationService;
 		ps: ProductService;
 		orderService: OrderService;
+		orderRepository: OrderRepository;
+		productRepository: ProductRepository;
 	}
 }
 
@@ -26,6 +32,10 @@ export async function configureDiContext(
 	});
 	diContainer.register({
 		db: asValue(server.database),
+	});
+	diContainer.register({
+		orderRepository: asClass<OrderRepository>(DrizzleOrderRepository),
+		productRepository: asClass<ProductRepository>(DrizzleProductRepository),
 	});
 	diContainer.register({
 		ns: asClass(NotificationService),

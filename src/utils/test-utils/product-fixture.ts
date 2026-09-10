@@ -1,4 +1,4 @@
-import {type Product} from '@/db/schema.js';
+import {type Product} from '@/domain/product.js';
 
 export const NOW = new Date('2026-09-10T12:00:00.000Z');
 export const DAY_IN_MS = 24 * 60 * 60 * 1000;

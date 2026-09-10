@@ -3,31 +3,23 @@ import {
 } from 'vitest';
 import {mockDeep, type DeepMockProxy} from 'vitest-mock-extended';
 import {type INotificationService} from '../notifications.port.js';
-import {createDatabaseMock, cleanUp} from '../../utils/test-utils/database-tools.ts.js';
 import {ProductService} from './product.service.js';
-import {products} from '@/db/schema.js';
-import {type Database} from '@/db/type.js';
+import {type Product} from '@/domain/product.js';
 import {NOW, createProduct, daysFromNow} from '@/utils/test-utils/product-fixture.js';
+import {InMemoryProductRepository} from '@/utils/test-utils/in-memory-product.repository.js';
 
-// This existing suite uses real SQLite despite running under test:unit.
-describe('ProductService characterization (SQLite)', () => {
+describe('ProductService', () => {
 	let notifications: DeepMockProxy<INotificationService>;
 	let productService: ProductService;
-	let database: Database;
-	let databaseName: string;
-	let closeDatabase: () => void;
+	let productRepository: InMemoryProductRepository;
 
-	beforeEach(async () => {
+	beforeEach(() => {
 		vi.useFakeTimers({toFake: ['Date']});
 		vi.setSystemTime(NOW);
-		({databaseMock: database, databaseName, close: closeDatabase} = await createDatabaseMock());
 		notifications = mockDeep<INotificationService>();
-		productService = new ProductService({ns: notifications, db: database});
 	});
 
-	afterEach(async () => {
-		closeDatabase();
-		await cleanUp(databaseName);
+	afterEach(() => {
 		vi.useRealTimers();
 	});
 
@@ -35,14 +27,12 @@ describe('ProductService characterization (SQLite)', () => {
 		const product = createProduct({available: 0, leadTime: 15});
 		const unrelatedProduct = createProduct({id: 2, name: 'Another product'});
 		const expectedProduct = {...product, leadTime: 7};
-		await database.insert(products).values([product, unrelatedProduct]);
+		givenProducts(product, unrelatedProduct);
 
 		await productService.notifyDelay(7, product);
 
 		expect(product).toEqual(expectedProduct);
-		expect(await database.select().from(products).orderBy(products.id)).toEqual([
-			expectedProduct, unrelatedProduct,
-		]);
+		expect(productRepository.all()).toEqual([expectedProduct, unrelatedProduct]);
 		expect(notifications.sendDelayNotification.mock.calls).toEqual([[7, product.name]]);
 		expect(notifications.sendOutOfStockNotification).not.toHaveBeenCalled();
 		expect(notifications.sendExpirationNotification).not.toHaveBeenCalled();
@@ -51,7 +41,7 @@ describe('ProductService characterization (SQLite)', () => {
 	it('legacy: a delay notification failure propagates after the new lead time has been saved', async () => {
 		const product = createProduct({available: 0, leadTime: 15});
 		const expectedProduct = {...product, leadTime: 7};
-		await database.insert(products).values(product);
+		givenProducts(product);
 		const failure = new Error('Notification unavailable');
 		notifications.sendDelayNotification.mockImplementation(() => {
 			throw failure;
@@ -60,8 +50,24 @@ describe('ProductService characterization (SQLite)', () => {
 		await expect(productService.notifyDelay(7, product)).rejects.toBe(failure);
 
 		expect(product).toEqual(expectedProduct);
-		expect(await database.select().from(products)).toEqual([expectedProduct]);
+		expect(productRepository.all()).toEqual([expectedProduct]);
 		expect(notifications.sendDelayNotification.mock.calls).toEqual([[7, product.name]]);
+		expect(notifications.sendOutOfStockNotification).not.toHaveBeenCalled();
+		expect(notifications.sendExpirationNotification).not.toHaveBeenCalled();
+	});
+
+	it('propagates a persistence failure without sending a delay notification', async () => {
+		const product = createProduct({available: 0, leadTime: 15});
+		const originalProduct = {...product};
+		givenProducts(product);
+		const failure = new Error('Persistence unavailable');
+		vi.spyOn(productRepository, 'update').mockRejectedValueOnce(failure);
+
+		await expect(productService.notifyDelay(7, product)).rejects.toBe(failure);
+
+		expect(product.leadTime).toBe(7);
+		expect(productRepository.all()).toEqual([originalProduct]);
+		expect(notifications.sendDelayNotification).not.toHaveBeenCalled();
 		expect(notifications.sendOutOfStockNotification).not.toHaveBeenCalled();
 		expect(notifications.sendExpirationNotification).not.toHaveBeenCalled();
 	});
@@ -69,14 +75,19 @@ describe('ProductService characterization (SQLite)', () => {
 	it('handleExpiredProduct also sells unexpired stock when called directly', async () => {
 		const product = createProduct({type: 'EXPIRABLE', expiryDate: daysFromNow(1)});
 		const expectedProduct = {...product, available: 2};
-		await database.insert(products).values(product);
+		givenProducts(product);
 
 		await productService.handleExpiredProduct(product);
 
 		expect(product).toEqual(expectedProduct);
-		expect(await database.select().from(products)).toEqual([expectedProduct]);
+		expect(productRepository.all()).toEqual([expectedProduct]);
 		expect(notifications.sendDelayNotification).not.toHaveBeenCalled();
 		expect(notifications.sendOutOfStockNotification).not.toHaveBeenCalled();
 		expect(notifications.sendExpirationNotification).not.toHaveBeenCalled();
 	});
+
+	function givenProducts(...products: Product[]) {
+		productRepository = new InMemoryProductRepository(products);
+		productService = new ProductService({ns: notifications, productRepository});
+	}
 });
