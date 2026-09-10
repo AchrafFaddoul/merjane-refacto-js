@@ -3,6 +3,7 @@
     "@tsconfig/node20/tsconfig.json",
     "@tsconfig/strictest/tsconfig.json"
   ],
+  "exclude": ["node_modules", "dist", "coverage", "html"],
   "compilerOptions": {
     "baseUrl": ".",
     "target": "es2020",
