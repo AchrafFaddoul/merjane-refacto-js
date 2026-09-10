@@ -7,6 +7,7 @@ import {ProductService} from './product.service.js';
 import {type Product} from '@/domain/product.js';
 import {NOW, createProduct, daysFromNow} from '@/utils/test-utils/product-fixture.js';
 import {InMemoryProductRepository} from '@/utils/test-utils/in-memory-product.repository.js';
+import {productCases} from '@/utils/test-utils/product-cases.js';
 
 describe('ProductService', () => {
 	let notifications: DeepMockProxy<INotificationService>;
@@ -21,6 +22,21 @@ describe('ProductService', () => {
 
 	afterEach(() => {
 		vi.useRealTimers();
+	});
+
+	it.each(productCases)('$scenario', async ({product: overrides, available, delay, outOfStock, expiration}) => {
+		const product = createProduct(overrides);
+		const unrelatedProduct = createProduct({id: 99, name: 'Not in this order'});
+		const expectedProduct = {...product, available};
+		givenProducts(product, unrelatedProduct);
+
+		await productService.processProduct(product);
+
+		expect(product).toEqual(expectedProduct);
+		expect(productRepository.all()).toEqual([expectedProduct, unrelatedProduct]);
+		expect(notifications.sendDelayNotification.mock.calls).toEqual(delay === undefined ? [] : [[delay, product.name]]);
+		expect(notifications.sendOutOfStockNotification.mock.calls).toEqual(outOfStock ? [[product.name]] : []);
+		expect(notifications.sendExpirationNotification.mock.calls).toEqual(expiration ? [[product.name, product.expiryDate]] : []);
 	});
 
 	it('updates the supplied lead time in memory and storage, and notifies only for the target product', async () => {
