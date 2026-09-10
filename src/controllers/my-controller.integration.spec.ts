@@ -43,7 +43,7 @@ describe('Process order characterization (HTTP, services and SQLite)', () => {
 	afterEach(async () => {
 		await fastify.close();
 		vi.useRealTimers();
-		// Each app instance installs shutdown listeners; release only this test's listeners.
+		// Release the shutdown listeners added by this app instance.
 		for (const [signal, originalListeners] of originalSignalListeners) {
 			for (const listener of process.listeners(signal)) {
 				if (!originalListeners.includes(listener)) {
@@ -212,7 +212,7 @@ describe('Process order characterization (HTTP, services and SQLite)', () => {
 	}
 
 	function rejectUpdatesToProduct(productId: number) {
-		// A real SQLite failure avoids coupling the test to Drizzle's query-builder calls.
+		// Fail the actual write without mocking Drizzle's query builder.
 		database.run(sql`
 			CREATE TRIGGER reject_product_update BEFORE UPDATE ON products
 			WHEN OLD.id = ${sql.raw(String(productId))}

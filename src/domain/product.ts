@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/ban-types -- Nullable dates are part of the existing product data contract. */
+/* eslint-disable @typescript-eslint/ban-types -- Existing product data uses null for missing dates. */
 export type Product = {
 	id: number;
 	name: string;
-	// Unknown persisted types remain representable and are currently ignored.
+	// The database also accepts unrecognized type values.
 	type: string;
 	available: number;
 	leadTime: number;

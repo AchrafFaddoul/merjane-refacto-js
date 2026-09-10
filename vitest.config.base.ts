@@ -7,6 +7,8 @@ export const baseConfig: UserConfig = {
 		coverage: {
 			provider: 'v8',
 			all: true,
+			include: ['src/**/*.ts'],
+			exclude: ['src/**/*.spec.ts', 'src/utils/test-utils/**'],
 		},
 		root: resolve(import.meta.dirname),
 		globals: true,
@@ -18,4 +20,3 @@ export const baseConfig: UserConfig = {
 		},
 	},
 };
-

@@ -42,7 +42,7 @@ export class ProductService {
 			}
 
 			default: {
-				// Unknown types are currently ignored; their handling is unspecified.
+				// Unknown product types have no defined processing rule.
 				break;
 			}
 		}

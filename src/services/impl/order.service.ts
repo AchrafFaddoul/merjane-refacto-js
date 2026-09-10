@@ -16,12 +16,12 @@ export class OrderService {
 	}
 
 	public async processOrder(orderId: number): Promise<{orderId: number}> {
-		// Missing orders retain the existing error behavior pending an API decision.
+		// Missing orders still fail with the existing error.
 		const order = (await this.orderRepository.findById(orderId))!;
 		const {products: productList} = order;
 
 		for (const product of productList) {
-			// Earlier writes and notifications must finish before processing the next product.
+			// Process sequentially so a failure stops later products.
 			// eslint-disable-next-line no-await-in-loop
 			await this.productService.processProduct(product);
 		}

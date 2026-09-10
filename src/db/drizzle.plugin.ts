@@ -22,7 +22,6 @@ export const drizzlePlugin: FastifyPluginAsync = fastifyPlugin(
 			...(appConfig.env === 'PROD' ? {} : {logger: true}),
 		});
 
-		// Make Prisma Client available through the fastify server instance: server.prisma
 		server.decorate('database', database);
 
 		server.addHook('onClose', async () => {

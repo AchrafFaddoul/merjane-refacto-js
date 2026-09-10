@@ -12,7 +12,7 @@ export class InMemoryProductRepository implements ProductRepository {
 
 	public async update(product: Product): Promise<void> {
 		if (this.products.has(product.id)) {
-			// Copy values so mutating an input cannot masquerade as a successful save.
+			// Input mutations must not change stored state without an update.
 			this.products.set(product.id, structuredClone(product));
 		}
 	}

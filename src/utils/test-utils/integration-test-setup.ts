@@ -9,11 +9,8 @@ const databaseConfig = CONFIG.get('db');
 
 beforeEach(async () => {
 	await exec(`pnpm drizzle-kit push --schema=src/db/schema.ts --dialect=sqlite --url=${databaseConfig.url}`);
-	console.log('✅ Database created');
 });
 
 afterEach(async () => {
 	await rm(databaseConfig.url);
-	console.log('✅ Database deleted');
 });
-
